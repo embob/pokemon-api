@@ -1,0 +1,5 @@
+mongo:
+  image: mongo
+  container_name: mongo-pokemon
+  ports:
+    - 27017:27017
