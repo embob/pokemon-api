@@ -2,6 +2,6 @@ mongo:
   image: mongo:latest
   container_name: mongo-pokemon
   volumes:
-      - ./pokeData:/data/db
+    - ./pokeData:/data/db
   ports:
     - 27017:27017
