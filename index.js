@@ -11,6 +11,9 @@ const port = process.env.PORT || 8765;
 
   const collDb = await collections(db);
 
+  console.log(db);
+  console.log(collDb);
+
   const mw = middleware({ pokemon: collDb.pokemon });
 
   app.get("/", (req, res) => res.send(`Welcome!`));

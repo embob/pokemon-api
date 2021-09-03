@@ -38,9 +38,7 @@ async function getPokemon({ url, name }) {
 
     const { moves } = data;
 
-
     // get descriptions from Moves for 10 random moves
-
     const movesSubset = getSubset(moves);
 
     for (const item of movesSubset) {
@@ -57,8 +55,6 @@ async function getPokemon({ url, name }) {
     const { name: evolvesFrom } =  evolves_from_species || "";
     data.description = description;
     data.evolvesFrom = evolvesFrom;
-
-
 
     if (status === 200) return data;
     throw new Error(`Error getting Pokemon ${name} (${status})`);
