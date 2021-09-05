@@ -1,0 +1,30 @@
+{
+  "id": 1,
+  "name": "bulbasaur",
+  "description": "a very nice pokemon",
+  "weight": 69,
+  "height": 7,
+  "types": [
+    "grass",
+    "poison"
+  ],
+  "strong_against": [
+    "ground",
+    "rock",
+    "water"
+  ],
+  "weak_against": [
+    "flying",
+    "poison",
+    "bug"
+  ],
+  "img": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/1.png",
+  "genus": "Seed Pokemon",
+  "moves": [
+    {
+      "name": "Swipe",
+      "description": "swipey swipe swipe",
+      "type": "fighting"
+    }
+  ]
+}

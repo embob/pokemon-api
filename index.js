@@ -1,17 +1,15 @@
 const express = require("express");
 const middleware = require("./middleware");
-const collections = require("./collections");
 const database = require("./db");
 
 const app = express();
 const port = process.env.PORT || 8765;
 
 (async () => {
-  const db = await database();
+  const db = database();
+  await db.connect();
 
-  const collDb = await collections(db);
-
-  const mw = middleware({ pokemon: collDb.pokemon });
+  const mw = middleware({ pokemon: db.collection().pokemonCollection });
 
   app.get("/", (req, res) => res.send(`Welcome!`));
 
