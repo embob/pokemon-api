@@ -1,14 +1,14 @@
-const { MongoClient } = require("mongodb");
+const { MongoClient } = require('mongodb');
 
 function db() {
   let pokemonCollection;
   let client;
 
   async function connect() {
-    client = new MongoClient("mongodb://localhost:27017");
+    client = new MongoClient('mongodb://localhost:27017');
     await client.connect();
-    const db = client.db("pokemonDb");
-    pokemonCollection = db.collection("pokemon");
+    const database = client.db('pokemonDb');
+    pokemonCollection = database.collection('pokemon');
 
     await pokemonCollection.createIndex({ id: 1 }, { unique: true });
     await pokemonCollection.createIndex({ name: 1 });
@@ -18,7 +18,7 @@ function db() {
     await pokemonCollection.updateOne(
       { id: pokemon.id },
       { $set: pokemon },
-      { upsert: true }
+      { upsert: true },
     );
   }
 

@@ -1,5 +1,5 @@
 {
-  "name": "pokeApi",
+  "name": "pokemon-api",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -7,7 +7,7 @@
     "start": "nodemon",
     "load": "node bin/pokemon-crawler",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "docker": "docker-compose up"
+    "docker": "docker-compose up -d"
   },
   "keywords": [],
   "author": "",

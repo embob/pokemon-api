@@ -1,6 +1,6 @@
-const axios = require("axios");
-const _ = require("lodash");
-const database = require("../db");
+const axios = require('axios');
+const _ = require('lodash');
+const database = require('../db');
 
 const ORIGINAL_POKEMON_COUNT = 151;
 
@@ -21,13 +21,13 @@ function pokemonFactory(sourcePokemon) {
     name: sourcePokemon.name,
     weight: Math.round(sourcePokemon.weight / 10),
     height: Math.round(sourcePokemon.height * 10),
-    image: _.get(sourcePokemon, "sprites.other.official-artwork.front_default"),
+    image: _.get(sourcePokemon, 'sprites.other.official-artwork.front_default'),
     types: sourcePokemon.types.map(({ type }) => type.name),
   };
 }
 
 function removeNewLines(string) {
-  return string.replace(/\n/g, " ");
+  return string.replace(/\n/g, ' ');
 }
 
 const typesCache = {};
@@ -44,13 +44,9 @@ async function getTypes(sourcePokemon) {
       sourceType = await get(url);
       typesCache[url] = sourceType;
     }
-    _.get(sourceType, "damage_relations.double_damage_to").map((type) =>
-      strongAgainst.add(type.name)
-    );
+    _.get(sourceType, 'damage_relations.double_damage_to').map((type) => strongAgainst.add(type.name));
 
-    _.get(sourceType, "damage_relations.double_damage_from").map((type) =>
-      weakAgainst.add(type.name)
-    );
+    _.get(sourceType, 'damage_relations.double_damage_from').map((type) => weakAgainst.add(type.name));
   }
   return {
     strongAgainst: Array.from(strongAgainst),
@@ -63,7 +59,7 @@ async function getEvolvesFrom(sourceEvolvesFrom) {
   const sourcePokemon = await get(`https://pokeapi.co/api/v2/pokemon/${name}`);
   const image = _.get(
     sourcePokemon,
-    "sprites.other.official-artwork.front_default"
+    'sprites.other.official-artwork.front_default',
   );
   return { name, image };
 }
@@ -81,18 +77,17 @@ async function getSpecies(sourcePokemon) {
     : Promise.resolve(null));
 
   const description = removeNewLines(
-    sourceDescriptions.find((description) => {
+    sourceDescriptions.find((sourceDescription) => {
       if (
-        description.version.name === "firered" &&
-        description.language.name === "en"
-      )
-        return description;
-    }).flavor_text
+        sourceDescription.version.name === 'firered'
+        && sourceDescription.language.name === 'en'
+      ) { return sourceDescription; }
+    }).flavor_text,
   );
 
-  const genus = sourceGenera.find((sourceGenus) => {
-    if (sourceGenus.language.name === "en") return sourceGenus;
-  }).genus;
+  const { genus } = sourceGenera.find((sourceGenus) => {
+    if (sourceGenus.language.name === 'en') return sourceGenus;
+  });
 
   return { evolvesFrom, description, genus };
 }
@@ -111,12 +106,11 @@ async function getMoves(sourcePokemon) {
       moves.push(movesCache[name]);
       continue;
     }
-    const { flavor_text_entries: sourceDescriptions, type: sourceType } =
-      await get(url);
+    const { flavor_text_entries: sourceDescriptions, type: sourceType } = await get(url);
     const description = removeNewLines(
       sourceDescriptions.find((sourceDescription) => {
-        if (sourceDescription.language.name === "en") return sourceDescription;
-      }).flavor_text
+        if (sourceDescription.language.name === 'en') return sourceDescription;
+      }).flavor_text,
     );
     const { name: type } = sourceType;
     movesCache[name] = { name, description, type };
@@ -134,11 +128,11 @@ function log(message) {
 }
 
 (async () => {
-  console.time("Time taken");
+  console.time('Time taken');
   const { results: pokemonList } = await get(
-    `https://pokeapi.co/api/v2/pokemon?limit=${ORIGINAL_POKEMON_COUNT}`
+    `https://pokeapi.co/api/v2/pokemon?limit=${ORIGINAL_POKEMON_COUNT}`,
   );
-  console.log("Start storing Pokemon");
+  console.log('Start storing Pokemon');
   const db = database();
   await db.connect();
   for (const { name, url } of pokemonList) {
@@ -150,16 +144,18 @@ function log(message) {
       getMoves(sourcePokemon),
     ]);
     try {
-      await db.upsert({ ...pokemon, ...strengthsAndWeaknesses, ...speciesData, moves });
+      await db.upsert({
+        ...pokemon, ...strengthsAndWeaknesses, ...speciesData, moves,
+      });
     } catch (error) {
       console.error(`Errored at ${name}`, error);
       process.exit(1);
     }
-    count = count + 1;
+    count += 1;
     log(`Saved #${count} ${name}`);
   }
   await db.close();
   console.log('\n');
-  console.timeEnd("Time taken");
-  console.log("Done");
+  console.timeEnd('Time taken');
+  console.log('Done');
 })();
