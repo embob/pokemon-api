@@ -34,8 +34,7 @@ const typesCache = {};
 
 async function getTypes(sourcePokemon) {
   const urls = sourcePokemon.types.map(({ type }) => type.url);
-  const strongAgainst = new Set();
-  const weakAgainst = new Set();
+  const sourceTypes = [];
   for (const url of urls) {
     let sourceType;
     if (typesCache[url]) {
@@ -44,14 +43,56 @@ async function getTypes(sourcePokemon) {
       sourceType = await get(url);
       typesCache[url] = sourceType;
     }
-    _.get(sourceType, 'damage_relations.double_damage_to').map((type) => strongAgainst.add(type.name));
-
-    _.get(sourceType, 'damage_relations.double_damage_from').map((type) => weakAgainst.add(type.name));
+    const { damage_relations: { double_damage_from, half_damage_from, no_damage_from } } = sourceType;
+    sourceTypes.push({ double_damage_from, half_damage_from, no_damage_from });
   }
-  return {
-    strongAgainst: Array.from(strongAgainst),
-    weakAgainst: Array.from(weakAgainst),
-  };
+
+  if (sourceTypes.length > 1) {
+    const [type1, type2] = sourceTypes;
+
+    const lookupStrategy = {
+      double_damage_from: 2, half_damage_from: 0.5, no_damage_from: 0,
+    };
+
+    const transform = (categoryType) => _.flattenDeep(Object.keys(lookupStrategy)
+      .map((key) => _.get(categoryType, key)
+        .map((type) => ({ name: type.name, value: lookupStrategy[key] }))));
+
+    const type1Result = transform(type1);
+    const type2Result = transform(type2);
+
+    const intersection = _.intersectionBy(type1Result, type2Result, 'name')
+      .map((type) => ({ name: type.name, value: type.value * _.find(type2Result, { name: type.name }).value }));
+
+    const difference = _.xorBy(type1Result, type2Result, 'name');
+
+    const damageRelationsShape = {
+      weakTo: [], // 2x +
+      resistantTo: [], // 0.1 > 0.9
+      immuneTo: [], // 0
+    };
+
+    const damageRelations = [...intersection, ...difference].reduce((prev, curr) => {
+      if (curr.value > 1) prev.weakTo.push(curr.name);
+      if (curr.value > 0 && curr.value < 1) prev.resistantTo.push(curr.name);
+      if (curr.value === 0) prev.immuneTo.push(curr.name);
+      return prev;
+    }, damageRelationsShape);
+    return { damageRelations };
+  }
+  const [sourceType] = sourceTypes;
+  const { double_damage_from, half_damage_from, no_damage_from } = sourceType;
+
+  function getTypeNames(array) {
+    return array.map((type) => type.name);
+  }
+
+  const weakTo = getTypeNames(double_damage_from);
+  const resistantTo = getTypeNames(half_damage_from);
+  const immuneTo = getTypeNames(no_damage_from);
+
+  const damageRelations = { weakTo, resistantTo, immuneTo };
+  return { damageRelations };
 }
 
 async function getEvolvesFrom(sourceEvolvesFrom) {
@@ -138,14 +179,14 @@ function log(message) {
   for (const { name, url } of pokemonList) {
     const sourcePokemon = await get(url);
     const pokemon = pokemonFactory(sourcePokemon);
-    const [strengthsAndWeaknesses, speciesData, moves] = await Promise.all([
+    const [damageRelations, speciesData, moves] = await Promise.all([
       getTypes(sourcePokemon),
       getSpecies(sourcePokemon),
       getMoves(sourcePokemon),
     ]);
     try {
       await db.upsert({
-        ...pokemon, ...strengthsAndWeaknesses, ...speciesData, moves,
+        ...pokemon, ...damageRelations, ...speciesData, moves,
       });
     } catch (error) {
       console.error(`Errored at ${name}`, error);
