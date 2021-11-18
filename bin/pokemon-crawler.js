@@ -15,6 +15,11 @@ async function get(url) {
   }
 }
 
+function getHp(stats) {
+  const { base_stat: hp } = stats.find(({ stat }) => stat.name === 'hp');
+  return hp;
+}
+
 function pokemonFactory(sourcePokemon) {
   return {
     id: sourcePokemon.id,
@@ -23,6 +28,7 @@ function pokemonFactory(sourcePokemon) {
     height: Math.round(sourcePokemon.height * 10),
     image: _.get(sourcePokemon, 'sprites.other.official-artwork.front_default'),
     types: sourcePokemon.types.map(({ type }) => type.name),
+    hp: getHp(sourcePokemon.stats),
   };
 }
 
@@ -43,7 +49,13 @@ async function getTypes(sourcePokemon) {
       sourceType = await get(url);
       typesCache[url] = sourceType;
     }
-    const { damage_relations: { double_damage_from, half_damage_from, no_damage_from } } = sourceType;
+    const {
+      damage_relations: {
+        double_damage_from,
+        half_damage_from,
+        no_damage_from,
+      },
+    } = sourceType;
     sourceTypes.push({ double_damage_from, half_damage_from, no_damage_from });
   }
 
@@ -51,18 +63,27 @@ async function getTypes(sourcePokemon) {
     const [type1, type2] = sourceTypes;
 
     const lookupStrategy = {
-      double_damage_from: 2, half_damage_from: 0.5, no_damage_from: 0,
+      double_damage_from: 2,
+      half_damage_from: 0.5,
+      no_damage_from: 0,
     };
 
-    const transform = (categoryType) => _.flattenDeep(Object.keys(lookupStrategy)
-      .map((key) => _.get(categoryType, key)
-        .map((type) => ({ name: type.name, value: lookupStrategy[key] }))));
+    const transform = (categoryType) => _.flattenDeep(
+      Object.keys(lookupStrategy).map((key) => _.get(categoryType, key).map((type) => ({
+        name: type.name,
+        value: lookupStrategy[key],
+      }))),
+    );
 
     const type1Result = transform(type1);
     const type2Result = transform(type2);
 
-    const intersection = _.intersectionBy(type1Result, type2Result, 'name')
-      .map((type) => ({ name: type.name, value: type.value * _.find(type2Result, { name: type.name }).value }));
+    const intersection = _.intersectionBy(type1Result, type2Result, 'name').map(
+      (type) => ({
+        name: type.name,
+        value: type.value * _.find(type2Result, { name: type.name }).value,
+      }),
+    );
 
     const difference = _.xorBy(type1Result, type2Result, 'name');
 
@@ -72,12 +93,15 @@ async function getTypes(sourcePokemon) {
       immuneTo: [], // 0
     };
 
-    const damageRelations = [...intersection, ...difference].reduce((prev, curr) => {
-      if (curr.value > 1) prev.weakTo.push(curr.name);
-      if (curr.value > 0 && curr.value < 1) prev.resistantTo.push(curr.name);
-      if (curr.value === 0) prev.immuneTo.push(curr.name);
-      return prev;
-    }, damageRelationsShape);
+    const damageRelations = [...intersection, ...difference].reduce(
+      (prev, curr) => {
+        if (curr.value > 1) prev.weakTo.push(curr.name);
+        if (curr.value > 0 && curr.value < 1) prev.resistantTo.push(curr.name);
+        if (curr.value === 0) prev.immuneTo.push(curr.name);
+        return prev;
+      },
+      damageRelationsShape,
+    );
     return { damageRelations };
   }
   const [sourceType] = sourceTypes;
@@ -97,12 +121,14 @@ async function getTypes(sourcePokemon) {
 
 async function getEvolvesFrom(sourceEvolvesFrom) {
   const { name } = sourceEvolvesFrom;
+  if (!name) return null;
   const sourcePokemon = await get(`https://pokeapi.co/api/v2/pokemon/${name}`);
+  const { id } = sourcePokemon;
   const image = _.get(
     sourcePokemon,
     'sprites.other.official-artwork.front_default',
   );
-  return { name, image };
+  return { name, image, id };
 }
 
 async function getSpecies(sourcePokemon) {
@@ -122,7 +148,9 @@ async function getSpecies(sourcePokemon) {
       if (
         sourceDescription.version.name === 'firered'
         && sourceDescription.language.name === 'en'
-      ) { return sourceDescription; }
+      ) {
+        return sourceDescription;
+      }
     }).flavor_text,
   );
 
@@ -186,7 +214,10 @@ function log(message) {
     ]);
     try {
       await db.upsert({
-        ...pokemon, ...damageRelations, ...speciesData, moves,
+        ...pokemon,
+        ...damageRelations,
+        ...speciesData,
+        moves,
       });
     } catch (error) {
       console.error(`Errored at ${name}`, error);
